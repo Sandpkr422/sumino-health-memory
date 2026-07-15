@@ -15,6 +15,11 @@ import {
   renderTrendChart 
 } from './charts.js';
 
+import {
+  supabase,
+  isSupabaseConfigured
+} from './supabase.js';
+
 // Global Application State
 let appState = null;
 let currentActiveView = "landing";
@@ -22,8 +27,31 @@ let selectedReportId = null;
 let isSignUpMode = false;
 
 // Initialize App
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   appState = getAppState();
+  
+  // Set up Supabase Auth Listener if configured
+  if (isSupabaseConfigured && supabase) {
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN') {
+        showToast("Logged in via cloud database session.");
+        await syncAppState();
+        updateNavigationUI();
+        navigateTo("dashboard");
+      } else if (event === 'SIGNED_OUT') {
+        appState.currentUser = null;
+        appState.reports = [];
+        appState.chatHistory = [];
+        saveAppState(appState);
+        updateNavigationUI();
+        navigateTo("landing");
+      }
+    });
+    
+    // Initial sync
+    await syncAppState();
+  }
+
   initRouting();
   initAuth();
   initDashboard();
@@ -33,6 +61,22 @@ document.addEventListener("DOMContentLoaded", () => {
   initChat();
   initDoctorSummary();
   initSettings();
+  
+  // Update backend status indicator badge
+  const statusBadge = document.getElementById("backend-status-badge");
+  if (statusBadge) {
+    if (isSupabaseConfigured) {
+      statusBadge.innerHTML = `<span style="width: 6px; height: 6px; border-radius: 50%; background-color: var(--success); display: inline-block;"></span>Cloud Backend`;
+      statusBadge.style.backgroundColor = "var(--success-bg)";
+      statusBadge.style.color = "var(--success)";
+      statusBadge.style.borderColor = "var(--success-border)";
+    } else {
+      statusBadge.innerHTML = `<span style="width: 6px; height: 6px; border-radius: 50%; background-color: var(--warning); display: inline-block;"></span>Local Sandbox`;
+      statusBadge.style.backgroundColor = "var(--warning-bg)";
+      statusBadge.style.color = "var(--warning-text)";
+      statusBadge.style.borderColor = "var(--warning-border)";
+    }
+  }
   
   // Render initial navigation visibility based on session
   updateNavigationUI();
@@ -269,21 +313,32 @@ function initAuth() {
     document.getElementById("forgot-email").value = "";
   });
 
-  // Google Login SSO Simulation
-  googleLoginBtn.addEventListener("click", () => {
-    // Log in a simulated Google user
-    appState.currentUser = { email: "sandeep@gmail.com", name: "Sandeep" };
-    appState.reports = [];
-    appState.chatHistory = [];
-    
-    saveAppState(appState);
-    updateNavigationUI();
-    navigateTo("dashboard");
-    showToast("Signed in via Google successfully.");
+  // Google Login SSO Simulation / Production
+  googleLoginBtn.addEventListener("click", async () => {
+    if (isSupabaseConfigured && supabase) {
+      showToast("Redirecting to Google Sign-In...");
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin
+        }
+      });
+      if (error) showToast("Google Auth failed: " + error.message);
+    } else {
+      // Log in a simulated Google user
+      appState.currentUser = { email: "sandeep@gmail.com", name: "Sandeep" };
+      appState.reports = [];
+      appState.chatHistory = [];
+      
+      saveAppState(appState);
+      updateNavigationUI();
+      navigateTo("dashboard");
+      showToast("Signed in via Google successfully.");
+    }
   });
 
   // Standard Email/Password Submit Handler
-  submitBtn.addEventListener("click", () => {
+  submitBtn.addEventListener("click", async () => {
     const email = document.getElementById("auth-email").value.trim();
     const password = document.getElementById("auth-password").value;
     const name = document.getElementById("auth-name").value.trim();
@@ -293,30 +348,61 @@ function initAuth() {
       return;
     }
 
-    if (isSignUpMode) {
-      // Sign Up Mock
-      appState.currentUser = { email, name };
-      appState.reports = [];
-      appState.chatHistory = [];
-      showToast(`Account created! Welcome, ${name}.`);
+    if (isSupabaseConfigured && supabase) {
+      showToast("Sending magic authentication link...");
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email,
+        options: {
+          shouldCreateUser: isSignUpMode,
+          data: {
+            full_name: name
+          },
+          emailRedirectTo: window.location.origin
+        }
+      });
+
+      if (error) {
+        showToast("OTP Link request failed: " + error.message);
+      } else {
+        showToast("Magic login link sent! Check your inbox.");
+        // Clear fields
+        document.getElementById("auth-email").value = "";
+        document.getElementById("auth-password").value = "";
+        if (document.getElementById("auth-name")) {
+          document.getElementById("auth-name").value = "";
+        }
+      }
     } else {
-      // Login Mock
-      appState.currentUser = { email, name: email.split('@')[0] };
-      // Keep existing reports if any, otherwise empty
-      showToast("Signed in successfully.");
+      if (isSignUpMode) {
+        // Sign Up Mock
+        appState.currentUser = { email, name };
+        appState.reports = [];
+        appState.chatHistory = [];
+        showToast(`Account created! Welcome, ${name}.`);
+      } else {
+        // Login Mock
+        appState.currentUser = { email, name: email.split('@')[0] };
+        // Keep existing reports if any, otherwise empty
+        showToast("Signed in successfully.");
+      }
+      
+      saveAppState(appState);
+      updateNavigationUI();
+      navigateTo("dashboard");
     }
-    
-    saveAppState(appState);
-    updateNavigationUI();
-    navigateTo("dashboard");
   });
 
   // Logout Handler
-  logoutBtn.addEventListener("click", () => {
-    appState = clearUserSession();
-    updateNavigationUI();
-    navigateTo("landing");
-    showToast("Signed out successfully.");
+  logoutBtn.addEventListener("click", async () => {
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase.auth.signOut();
+      if (error) showToast("Sign out failed: " + error.message);
+    } else {
+      appState = clearUserSession();
+      updateNavigationUI();
+      navigateTo("landing");
+      showToast("Signed out successfully.");
+    }
   });
 }
 
@@ -701,24 +787,41 @@ function handleSelectedFile(file) {
   }, 100);
 }
 
-function completeMockParsing(file) {
+async function completeMockParsing(file) {
   // Parse file and generate biomarkers
   const newReport = parseUploadedFileMock(file.name, file.size);
-  
-  // Add to state
-  appState.reports.push(newReport);
-  selectedReportId = newReport.id;
-  
-  // Add an automated AI welcome message in chat reflecting the new upload
   const abnCount = newReport.biomarkers.filter(b => b.status !== "normal").length;
-  const notificationMsg = {
-    sender: "ai",
-    text: `I've successfully parsed your new report <strong>${newReport.fileName}</strong> from <strong>${newReport.labName}</strong> (${newReport.date}). I extracted ${newReport.biomarkers.length} biomarkers. I flagged ${abnCount} out-of-range metrics. Ask me what changed!`,
-    timestamp: new Date().toISOString()
-  };
-  appState.chatHistory.push(notificationMsg);
 
-  saveAppState(appState);
+  if (isSupabaseConfigured && supabase) {
+    try {
+      showToast("Saving report to cloud database...");
+      const reportDbId = await uploadReportToSupabase(file, newReport);
+      selectedReportId = reportDbId;
+
+      // Log notification in chat
+      const textMsg = `I've successfully parsed your new report <strong>${newReport.fileName}</strong> from <strong>${newReport.labName}</strong> (${newReport.date}). I extracted ${newReport.biomarkers.length} biomarkers. I flagged ${abnCount} out-of-range metrics. Ask me what changed!`;
+      await saveChatToSupabase(`Upload file: ${newReport.fileName}`, textMsg);
+
+      // Reload state from database
+      await syncAppState();
+    } catch (err) {
+      showToast("Database upload failed: " + err.message);
+      return;
+    }
+  } else {
+    // Local offline sandbox mode
+    appState.reports.push(newReport);
+    selectedReportId = newReport.id;
+    
+    // Add an automated AI welcome message in chat reflecting the new upload
+    const notificationMsg = {
+      sender: "ai",
+      text: `I've successfully parsed your new report <strong>${newReport.fileName}</strong> from <strong>${newReport.labName}</strong> (${newReport.date}). I extracted ${newReport.biomarkers.length} biomarkers. I flagged ${abnCount} out-of-range metrics. Ask me what changed!`,
+      timestamp: new Date().toISOString()
+    };
+    appState.chatHistory.push(notificationMsg);
+    saveAppState(appState);
+  }
   
   // Clean up UI progress, show success card
   document.getElementById("upload-progress-card").style.display = "none";
@@ -1096,10 +1199,20 @@ function initChat() {
   });
 
   // Clear Chat History (New Conversation)
-  clearBtn.addEventListener("click", () => {
-    appState.chatHistory = [];
-    saveAppState(appState);
-    refreshChatWindow();
+  clearBtn.addEventListener("click", async () => {
+    if (isSupabaseConfigured && supabase && appState.currentUser) {
+      showToast("Clearing cloud conversation history...");
+      const { error } = await supabase
+        .from('conversations')
+        .delete()
+        .eq('user_id', appState.currentUser.id);
+      if (error) console.error("Error clearing conversations:", error);
+      await syncAppState();
+    } else {
+      appState.chatHistory = [];
+      saveAppState(appState);
+      refreshChatWindow();
+    }
     showToast("Conversation cleared. Context reset.");
   });
 }
@@ -1174,6 +1287,11 @@ function sendChatMessage(text) {
     };
     appState.chatHistory.push(aiMsg);
     saveAppState(appState);
+    
+    // Save to Supabase DB if connected
+    if (isSupabaseConfigured && supabase && appState.currentUser) {
+      saveChatToSupabase(text, aiAnswer.text);
+    }
     
     // Render AI bubble
     appendChatBubbleUI("ai", aiAnswer.text, aiAnswer.citations);
@@ -1397,5 +1515,172 @@ function refreshSettings() {
     document.getElementById("settings-name").value = appState.currentUser.name;
     document.getElementById("settings-email").value = appState.currentUser.email;
     document.getElementById("settings-med-history").value = appState.currentUser.medicalHistory || "";
+  }
+}
+
+// --- SUPABASE CLOUD BACKEND SYNCHRONIZATION HELPERS ---
+
+export async function syncAppState() {
+  if (!isSupabaseConfigured || !supabase) return;
+
+  try {
+    const { data: { user }, error: userErr } = await supabase.auth.getUser();
+    if (userErr) throw userErr;
+
+    if (user) {
+      // User is authenticated
+      appState.currentUser = {
+        id: user.id,
+        email: user.email,
+        name: user.user_metadata.full_name || user.email.split('@')[0],
+        medicalHistory: user.user_metadata.medical_history || ""
+      };
+
+      // 1. Fetch reports
+      const { data: reportsData, error: reportsErr } = await supabase
+        .from('reports')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('upload_date', { ascending: false });
+
+      if (reportsErr) throw reportsErr;
+
+      const syncedReports = [];
+      if (reportsData) {
+        for (const r of reportsData) {
+          // Fetch biomarkers for this report
+          const { data: biomarkersData, error: bioErr } = await supabase
+            .from('biomarkers')
+            .select('*')
+            .eq('report_id', r.id);
+
+          if (bioErr) throw bioErr;
+
+          syncedReports.push({
+            id: r.id,
+            fileName: r.pdf_url.split('/').pop(),
+            date: r.upload_date ? r.upload_date.split('T')[0] : new Date().toISOString().split('T')[0],
+            labName: r.lab_name,
+            biomarkers: (biomarkersData || []).map(b => ({
+              name: b.marker,
+              value: Number(b.value),
+              unit: b.unit,
+              normalRange: b.reference_range,
+              status: b.status
+            })),
+            aiExplanation: r.ai_explanation || ""
+          });
+        }
+      }
+      appState.reports = syncedReports;
+
+      // 2. Fetch conversations (chat history)
+      const { data: chatsData, error: chatsErr } = await supabase
+        .from('conversations')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: true });
+
+      if (chatsErr) throw chatsErr;
+
+      const syncedChatHistory = [];
+      if (chatsData) {
+        chatsData.forEach(c => {
+          syncedChatHistory.push({ sender: 'user', text: c.question, timestamp: c.created_at });
+          syncedChatHistory.push({ sender: 'ai', text: c.answer, timestamp: c.created_at });
+        });
+      }
+      appState.chatHistory = syncedChatHistory;
+
+    } else {
+      // User is signed out, clear state
+      appState.currentUser = null;
+      appState.reports = [];
+      appState.chatHistory = [];
+    }
+
+    saveAppState(appState);
+    
+    // Force redraw active view
+    if (currentActiveView === "dashboard") refreshDashboard();
+    else if (currentActiveView === "upload") refreshUpload();
+    else if (currentActiveView === "timeline") refreshTimeline();
+    else if (currentActiveView === "chat") refreshChat();
+    else if (currentActiveView === "summary") refreshDoctorSummary();
+    else if (currentActiveView === "settings") refreshSettings();
+
+  } catch (err) {
+    console.error("SUMINO: Error syncing with Supabase:", err);
+  }
+}
+
+export async function uploadReportToSupabase(file, parsedReport) {
+  if (!isSupabaseConfigured || !supabase || !appState.currentUser) return null;
+
+  try {
+    const userId = appState.currentUser.id;
+    const fileExt = file.name.split('.').pop();
+    const filePath = `${userId}/${Date.now()}_${Math.random().toString(36).substr(2, 5)}.${fileExt}`;
+
+    // 1. Upload file to Supabase Storage
+    const { data: storageData, error: storageErr } = await supabase.storage
+      .from('medical-reports')
+      .upload(filePath, file);
+
+    if (storageErr) throw storageErr;
+
+    // 2. Insert record into reports table
+    const { data: reportRow, error: reportErr } = await supabase
+      .from('reports')
+      .insert({
+        user_id: userId,
+        lab_name: parsedReport.labName,
+        pdf_url: storageData.path,
+        ai_explanation: parsedReport.aiExplanation
+      })
+      .select()
+      .single();
+
+    if (reportErr) throw reportErr;
+
+    // 3. Insert biomarkers into biomarkers table
+    const biomarkersToInsert = parsedReport.biomarkers.map(b => ({
+      report_id: reportRow.id,
+      marker: b.name,
+      value: b.value,
+      unit: b.unit,
+      reference_range: b.normalRange,
+      status: b.status
+    }));
+
+    const { error: bioErr } = await supabase
+      .from('biomarkers')
+      .insert(biomarkersToInsert);
+
+    if (bioErr) throw bioErr;
+
+    return reportRow.id;
+
+  } catch (err) {
+    console.error("SUMINO: Failed uploading to Supabase:", err);
+    throw err;
+  }
+}
+
+export async function saveChatToSupabase(question, answer) {
+  if (!isSupabaseConfigured || !supabase || !appState.currentUser) return;
+
+  try {
+    const { error } = await supabase
+      .from('conversations')
+      .insert({
+        user_id: appState.currentUser.id,
+        question: question,
+        answer: answer
+      });
+
+    if (error) throw error;
+  } catch (err) {
+    console.error("SUMINO: Failed saving chat log to Supabase:", err);
   }
 }
