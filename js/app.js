@@ -314,101 +314,100 @@ function showToast(message) {
 
 // 1. AUTHENTICATION
 function initAuth() {
-  const sendOtpBtn = document.getElementById("auth-send-otp-btn");
-  const verifyOtpBtn = document.getElementById("auth-verify-otp-btn");
-  const changePhoneLink = document.getElementById("auth-change-phone-link");
+  const switchLink = document.getElementById("auth-switch-link");
+  const switchText = document.getElementById("auth-switch-text");
+  const nameGroup = document.getElementById("auth-name-group");
+  const submitBtn = document.getElementById("auth-submit-btn");
+  const title = document.getElementById("auth-title");
+  const subtitle = document.getElementById("auth-subtitle");
   const logoutBtn = document.getElementById("logout-btn");
-  
-  const phoneInputGroup = document.getElementById("phone-input-group");
-  const otpInputGroup = document.getElementById("otp-input-group");
-  
-  let currentPhone = "";
 
-  // 1. Send OTP Clicked
-  sendOtpBtn.addEventListener("click", async () => {
-    const phone = document.getElementById("auth-phone").value.trim();
-    if (!phone) {
-      showToast("Please enter a valid phone number.");
-      return;
-    }
-    
-    currentPhone = phone;
-    showToast("Sending verification code...");
-    
-    if (isSupabaseConfigured && supabase) {
-      try {
-        const { error } = await supabase.auth.signInWithOtp({ phone });
-        if (error) {
-          showToast("Failed to send OTP: " + error.message);
-          return;
-        }
-      } catch (err) {
-        showToast("Error sending OTP: " + err.message);
-        return;
-      }
+  // Toggle Login / Sign Up modes
+  switchLink.addEventListener("click", () => {
+    isSignUpMode = !isSignUpMode;
+    if (isSignUpMode) {
+      title.textContent = "Create Account";
+      subtitle.textContent = "Join SUMINO to store medical timeline";
+      nameGroup.style.display = "block";
+      submitBtn.textContent = "Sign Up";
+      switchText.textContent = "Already have an account?";
+      switchLink.textContent = "Log In";
     } else {
-      // Mock sending OTP
-      console.log(`SUMINO (Mock Auth): OTP sent to ${phone}. Enter 123456 to verify.`);
+      title.textContent = "Welcome to SUMINO";
+      subtitle.textContent = "Log in to view your health memory";
+      nameGroup.style.display = "none";
+      submitBtn.textContent = "Log In";
+      switchText.textContent = "Don't have an account?";
+      switchLink.textContent = "Sign Up";
     }
-    
-    showToast("OTP verification code sent!");
-    phoneInputGroup.style.display = "none";
-    otpInputGroup.style.display = "block";
-    document.getElementById("auth-otp").value = "";
-    document.getElementById("auth-otp").focus();
   });
 
-  // 2. Change Phone Number Clicked
-  changePhoneLink.addEventListener("click", () => {
-    phoneInputGroup.style.display = "block";
-    otpInputGroup.style.display = "none";
-  });
+  // Standard Email/Password Submit Handler
+  submitBtn.addEventListener("click", async () => {
+    const email = document.getElementById("auth-email").value.trim();
+    const password = document.getElementById("auth-password").value;
+    const name = document.getElementById("auth-name").value.trim();
 
-  // 3. Verify OTP & Log In Clicked
-  verifyOtpBtn.addEventListener("click", async () => {
-    const token = document.getElementById("auth-otp").value.trim();
-    if (!token || token.length !== 6) {
-      showToast("Please enter a valid 6-digit verification code.");
+    if (!email || !password || (isSignUpMode && !name)) {
+      showToast("Please fill in all required fields.");
       return;
     }
 
-    showToast("Verifying code...");
-
     if (isSupabaseConfigured && supabase) {
-      try {
-        const { data, error } = await supabase.auth.verifyOtp({
-          phone: currentPhone,
-          token: token,
-          type: 'sms'
+      if (isSignUpMode) {
+        showToast("Creating cloud account...");
+        const { data, error } = await supabase.auth.signUp({
+          email: email,
+          password: password,
+          options: {
+            data: {
+              full_name: name
+            }
+          }
         });
-        
+
         if (error) {
-          showToast("Verification failed: " + error.message);
+          showToast("Registration failed: " + error.message);
         } else {
-          showToast("Successfully logged in!");
-          // onAuthStateChange handles redirection and syncing!
+          showToast("Registration successful! Logging in...");
+          // Try to log in immediately
+          const { error: loginErr } = await supabase.auth.signInWithPassword({ email, password });
+          if (loginErr) {
+            showToast("Confirm your email to complete registration.");
+          }
         }
-      } catch (err) {
-        showToast("Verification error: " + err.message);
+      } else {
+        showToast("Logging in...");
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: email,
+          password: password
+        });
+
+        if (error) {
+          showToast("Login failed: " + error.message);
+        }
       }
     } else {
-      // Mock verification
-      if (token === "123456" || token === "000000" || token.length === 6) {
-        appState.currentUser = { email: `${currentPhone.replace('+', '')}@phone.sumino.ai`, name: currentPhone };
+      if (isSignUpMode) {
+        // Sign Up Mock
+        appState.currentUser = { email, name };
         appState.reports = [];
         appState.chatHistory = [];
-        
-        saveAppState(appState);
-        updateNavigationUI();
-        navigateTo("dashboard");
-        showToast("Successfully logged in via mock SMS!");
+        showToast(`Account created! Welcome, ${name}.`);
       } else {
-        showToast("Invalid verification code. Try again.");
+        // Login Mock
+        appState.currentUser = { email, name: email.split('@')[0] };
+        // Keep existing reports if any, otherwise empty
+        showToast("Signed in successfully.");
       }
+      
+      saveAppState(appState);
+      updateNavigationUI();
+      navigateTo("dashboard");
     }
   });
 
-  // 4. Logout Handler
+  // Logout Handler
   logoutBtn.addEventListener("click", async () => {
     if (isSupabaseConfigured && supabase) {
       const { error } = await supabase.auth.signOut();
@@ -422,11 +421,38 @@ function initAuth() {
   });
 }
 
-function showAuthForm() {
+function showAuthForm(signup = false) {
+  isSignUpMode = signup;
   navigateTo("auth");
-  document.getElementById("phone-input-group").style.display = "block";
-  document.getElementById("otp-input-group").style.display = "none";
-  document.getElementById("auth-phone").value = "";
+  const switchLink = document.getElementById("auth-switch-link");
+  const switchText = document.getElementById("auth-switch-text");
+  const nameGroup = document.getElementById("auth-name-group");
+  const submitBtn = document.getElementById("auth-submit-btn");
+  const title = document.getElementById("auth-title");
+  const subtitle = document.getElementById("auth-subtitle");
+
+  // Clear fields
+  document.getElementById("auth-email").value = "";
+  document.getElementById("auth-password").value = "";
+  if (document.getElementById("auth-name")) {
+    document.getElementById("auth-name").value = "";
+  }
+
+  if (signup) {
+    title.textContent = "Create Account";
+    subtitle.textContent = "Join SUMINO to store medical timeline";
+    nameGroup.style.display = "block";
+    submitBtn.textContent = "Sign Up";
+    switchText.textContent = "Already have an account?";
+    switchLink.textContent = "Log In";
+  } else {
+    title.textContent = "Welcome to SUMINO";
+    subtitle.textContent = "Log in to view your health memory";
+    nameGroup.style.display = "none";
+    submitBtn.textContent = "Log In";
+    switchText.textContent = "Don't have an account?";
+    switchLink.textContent = "Sign Up";
+  }
 }
 
 // 2. DASHBOARD

@@ -324,37 +324,42 @@
     <section class="view-section" id="view-auth">
       <div class="auth-container">
         
-        <!-- Phone Login/Signup Form Wrapper -->
+        <!-- Email/Password Login/Signup Form Wrapper -->
         <div id="auth-form-wrapper">
           <div class="auth-header">
             <div style="display: inline-flex; align-items: center; gap: 8px; color: var(--primary); margin-bottom: 12px;">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
               <span style="font-family: var(--font-heading); font-weight: 800; font-size: 1.15rem; letter-spacing: -0.5px;">SUMINO</span>
             </div>
-            <h2 id="auth-title">Verify Phone</h2>
-            <p id="auth-subtitle">Enter your phone number to receive an OTP code</p>
+            <h2 id="auth-title">Welcome to SUMINO</h2>
+            <p id="auth-subtitle">Log in to view your health memory</p>
           </div>
           
           <form id="auth-form" onsubmit="return false;">
-            <!-- Step 1: Input Phone Number -->
-            <div id="phone-input-group" class="form-group">
-              <label for="auth-phone">Phone Number (with Country Code)</label>
-              <input type="tel" id="auth-phone" class="form-control" placeholder="+1234567890" required>
-              <button class="btn btn-primary" style="width: 100%; padding: 12px; margin-top: 16px;" id="auth-send-otp-btn">Send OTP Code</button>
+            <div class="form-group" id="auth-name-group" style="display: none;">
+              <label for="auth-name">Full Name</label>
+              <input type="text" id="auth-name" class="form-control" placeholder="Jane Doe">
             </div>
             
-            <!-- Step 2: Input OTP Verification Code -->
-            <div id="otp-input-group" class="form-group" style="display: none;">
-              <div style="margin-bottom: 12px; padding: 10px; background-color: var(--success-bg); border: 1px solid var(--success-border); border-radius: var(--radius-sm); color: var(--success-text); font-size: 0.85rem; text-align: center;">
-                OTP code sent! Enter it below.
-              </div>
-              <label for="auth-otp">6-Digit Verification Code</label>
-              <input type="text" id="auth-otp" class="form-control" placeholder="123456" maxlength="6" required>
-              <button class="btn btn-primary" style="width: 100%; padding: 12px; margin-top: 16px;" id="auth-verify-otp-btn">Verify & Log In</button>
-              <a id="auth-change-phone-link" style="display: block; text-align: center; margin-top: 12px; font-size: 0.8rem; color: var(--primary); font-weight: 600; text-decoration: none; cursor: pointer;">Change Phone Number</a>
+            <div class="form-group">
+              <label for="auth-email">Email Address</label>
+              <input type="email" id="auth-email" class="form-control" placeholder="jane@example.com" required>
             </div>
+            
+            <div class="form-group">
+              <label for="auth-password">Password</label>
+              <input type="password" id="auth-password" class="form-control" placeholder="••••••••" required>
+            </div>
+            
+            <button class="btn btn-primary" style="width: 100%; padding: 12px; margin-top: 16px;" id="auth-submit-btn">Log In</button>
           </form>
+          
+          <div class="auth-footer">
+            <span id="auth-switch-text">Don't have an account?</span>
+            <a id="auth-switch-link">Sign Up</a>
+          </div>
         </div>
+
       </div>
     </section>
 
