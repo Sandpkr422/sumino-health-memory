@@ -1788,10 +1788,16 @@ async function runSystemDiagnostics() {
   }
   log.push({ name: "Supabase Configuration", ok: true, msg: "API keys loaded." });
   
+  // Get active configuration values (supporting LocalStorage overrides)
+  const runtimeUrl = localStorage.getItem("sumino_supabase_url");
+  const runtimeKey = localStorage.getItem("sumino_supabase_anon_key");
+  const targetUrl = runtimeUrl || import.meta.env.VITE_SUPABASE_URL;
+  const targetKey = runtimeKey || import.meta.env.VITE_SUPABASE_ANON_KEY;
+
   // 2. Reachability Check
   try {
-    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/`, {
-      headers: { apikey: import.meta.env.VITE_SUPABASE_ANON_KEY }
+    const res = await fetch(`${targetUrl}/rest/v1/`, {
+      headers: { apikey: targetKey }
     });
     if (res.ok) {
       log.push({ name: "API Connection", ok: true, msg: "Database endpoints reachable." });
