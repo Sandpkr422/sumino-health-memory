@@ -36,10 +36,11 @@ const DEMO_REPORTS = [
 ];
 
 const INITIAL_STATE = {
+  version: 2, // Version marker for migrations
   currentUser: { email: "demo@sumino.ai", name: "Jane Doe" },
   reports: DEMO_REPORTS,
   chatHistory: [
-    { sender: "ai", text: "Hello Jane! I am your SUMINO Health Assistant. I have analyzed your 3 uploaded health reports spanning from Jan 2025 to Jan 2026. You can ask me to compare reports, explain trends, or compile questions for your next doctor's visit.", timestamp: new Date().toISOString() }
+    { sender: "ai", text: "Hello Jane! I am your SUMINO Health Assistant. I have analyzed your 2 uploaded health reports spanning from 2024 to 2025. You can ask me to compare reports, explain trends, or compile questions for your next doctor's visit.", timestamp: new Date().toISOString() }
   ]
 };
 
@@ -48,7 +49,14 @@ export function getAppState() {
   const saved = localStorage.getItem("sumino_app_state");
   if (saved) {
     try {
-      return JSON.parse(saved);
+      const parsed = JSON.parse(saved);
+      // Auto-migrate if version is older or missing
+      if (!parsed.version || parsed.version < 2) {
+        console.warn("Outdated SUMINO app state detected, migrating to version 2.");
+        localStorage.setItem("sumino_app_state", JSON.stringify(INITIAL_STATE));
+        return JSON.parse(JSON.stringify(INITIAL_STATE));
+      }
+      return parsed;
     } catch (e) {
       console.error("Error parsing SUMINO app state, resetting to initial state", e);
     }

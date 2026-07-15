@@ -19,6 +19,7 @@ import {
 let appState = null;
 let currentActiveView = "landing";
 let selectedReportId = null;
+let isSignUpMode = false;
 
 // Initialize App
 document.addEventListener("DOMContentLoaded", () => {
@@ -206,8 +207,6 @@ function initAuth() {
   // Google SSO button
   const googleLoginBtn = document.getElementById("google-login-btn");
 
-  let isSignUpMode = false;
-
   // Toggle Login / Sign Up modes
   switchLink.addEventListener("click", () => {
     isSignUpMode = !isSignUpMode;
@@ -331,6 +330,7 @@ function initAuth() {
 }
 
 function showAuthForm(signup = false) {
+  isSignUpMode = signup;
   navigateTo("auth");
   const switchLink = document.getElementById("auth-switch-link");
   const switchText = document.getElementById("auth-switch-text");
