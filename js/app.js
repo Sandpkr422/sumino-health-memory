@@ -186,6 +186,47 @@ function initRouting() {
   document.getElementById("detail-back-to-dash-btn").addEventListener("click", () => {
     navigateTo("dashboard");
   });
+
+  // System diagnostics button trigger
+  const diagBtn = document.getElementById("trigger-diagnostics-btn");
+  const diagContainer = document.getElementById("system-diagnostics-container");
+  const diagList = document.getElementById("diagnostics-results-list");
+  
+  if (diagBtn) {
+    diagBtn.addEventListener("click", async () => {
+      diagContainer.style.display = "block";
+      diagList.innerHTML = `<div style="text-align:center; padding:15px; color:var(--text-light); font-size:0.9rem;">Running system connection checks...</div>`;
+      
+      const logs = await runSystemDiagnostics();
+      
+      diagList.innerHTML = "";
+      logs.forEach(log => {
+        const item = document.createElement("div");
+        item.style.display = "flex";
+        item.style.alignItems = "center";
+        item.style.justifyContent = "space-between";
+        item.style.padding = "12px";
+        item.style.border = "1px solid var(--border-color)";
+        item.style.borderRadius = "var(--radius-sm)";
+        item.style.backgroundColor = log.ok ? "var(--success-bg)" : "var(--danger-bg)";
+        item.style.borderColor = log.ok ? "var(--success-border)" : "var(--danger-border)";
+        
+        const badgeColor = log.ok ? "var(--success)" : "var(--danger)";
+        const iconSvg = log.ok 
+          ? `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${badgeColor}" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>`
+          : `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${badgeColor}" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+        
+        item.innerHTML = `
+          <div style="display:flex; align-items:center; gap:8px;">
+            ${iconSvg}
+            <strong style="color:var(--text-main); font-size:0.9rem;">${log.name}</strong>
+          </div>
+          <span style="font-size:0.8rem; color:${log.ok ? "var(--success-text)" : "var(--danger-text)"}; font-weight:600; text-align:right;">${log.msg}</span>
+        `;
+        diagList.appendChild(item);
+      });
+    });
+  }
 }
 
 // Update header visibility of navigation tabs
@@ -1693,4 +1734,63 @@ export async function saveChatToSupabase(question, answer) {
   } catch (err) {
     console.error("SUMINO: Failed saving chat log to Supabase:", err);
   }
+}
+
+async function runSystemDiagnostics() {
+  const log = [];
+  
+  // 1. Connection Check
+  if (!isSupabaseConfigured || !supabase) {
+    log.push({ name: "Supabase Configuration", ok: false, msg: "Vite variables are missing or misconfigured in Vercel settings." });
+    return log;
+  }
+  log.push({ name: "Supabase Configuration", ok: true, msg: "API keys loaded." });
+  
+  // 2. Reachability Check
+  try {
+    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/`, {
+      headers: { apikey: import.meta.env.VITE_SUPABASE_ANON_KEY }
+    });
+    if (res.ok) {
+      log.push({ name: "API Connection", ok: true, msg: "Database endpoints reachable." });
+    } else {
+      throw new Error(`HTTP Status ${res.status}`);
+    }
+  } catch (err) {
+    log.push({ name: "API Connection", ok: false, msg: "Failed connecting: " + err.message });
+    return log;
+  }
+  
+  // 3. Tables Check
+  const tables = ["reports", "biomarkers", "conversations"];
+  for (const table of tables) {
+    try {
+      const { error } = await supabase.from(table).select("*").limit(1);
+      if (error) {
+        if (error.code === "PGRST116" || error.code === "PGRST100" || error.message.includes("does not exist")) {
+          log.push({ name: `Table: ${table}`, ok: false, msg: "Missing. Run schema.sql in SQL Editor." });
+        } else {
+          log.push({ name: `Table: ${table}`, ok: false, msg: `RLS policy or database issue: ${error.message}` });
+        }
+      } else {
+        log.push({ name: `Table: ${table}`, ok: true, msg: "Active." });
+      }
+    } catch (err) {
+      log.push({ name: `Table: ${table}`, ok: false, msg: "Query error: " + err.message });
+    }
+  }
+  
+  // 4. Storage Bucket Check
+  try {
+    const { data, error } = await supabase.storage.getBucket('medical-reports');
+    if (error) {
+      log.push({ name: "Storage Bucket", ok: false, msg: `Missing bucket 'medical-reports'. Create in Storage settings.` });
+    } else {
+      log.push({ name: "Storage Bucket", ok: true, msg: "Active." });
+    }
+  } catch (err) {
+    log.push({ name: "Storage Bucket", ok: false, msg: "Storage API error: " + err.message });
+  }
+  
+  return log;
 }

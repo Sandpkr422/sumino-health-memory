@@ -290,6 +290,19 @@
         <p>Take control of your clinical history. Begin tracking your biomarkers and preparing for your next doctor visit today.</p>
         <button class="btn" id="cta-get-started" style="background-color: white; color: var(--primary); font-weight:700; padding: 14px 28px; font-size:1.05rem; box-shadow: var(--shadow-md);">Get Started Free</button>
       </div>
+
+      <!-- Diagnostics Panel -->
+      <div id="system-diagnostics-container" style="display:none; max-width: 650px; margin: 30px auto; padding: 24px; background: white; border-radius: var(--radius-lg); border: 1px solid var(--border-color); box-shadow: var(--shadow-md);">
+        <h3 style="margin-top:0; font-family: var(--font-heading); font-size:1.25rem; color: var(--text-main); display:flex; align-items:center; gap: 8px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary)"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          System Connection Diagnostics
+        </h3>
+        <p style="color:var(--text-light); font-size:0.85rem; margin-bottom: 20px;">Testing backend database connections, storage APIs, and environment credentials in real-time.</p>
+        <div id="diagnostics-results-list" style="display:flex; flex-direction:column; gap:12px;">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+      <a id="trigger-diagnostics-btn" style="color:var(--text-light); font-size:0.75rem; text-decoration:underline; cursor:pointer; display:block; text-align:center; margin-top:24px; margin-bottom:24px;">Run System Connection Diagnostics</a>
     </section>
 
 
