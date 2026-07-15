@@ -272,11 +272,9 @@ function initAuth() {
   // Google Login SSO Simulation
   googleLoginBtn.addEventListener("click", () => {
     // Log in a simulated Google user
-    appState.currentUser = { email: "jane.doe@gmail.com", name: "Jane Doe" };
-    // Check if reports are empty, if so, seed demo data for a seamless trial experience
-    if (appState.reports.length === 0) {
-      appState = resetAppStateToDemo();
-    }
+    appState.currentUser = { email: "sandeep@gmail.com", name: "Sandeep" };
+    appState.reports = [];
+    appState.chatHistory = [];
     
     saveAppState(appState);
     updateNavigationUI();
@@ -298,20 +296,13 @@ function initAuth() {
     if (isSignUpMode) {
       // Sign Up Mock
       appState.currentUser = { email, name };
-      // Seed initial demo data for a nice experience
-      if (appState.reports.length === 0) {
-        appState = resetAppStateToDemo();
-        appState.currentUser = { email, name }; // retain sign-up name
-      }
+      appState.reports = [];
+      appState.chatHistory = [];
       showToast(`Account created! Welcome, ${name}.`);
     } else {
       // Login Mock
       appState.currentUser = { email, name: email.split('@')[0] };
-      // Seed if empty
-      if (appState.reports.length === 0) {
-        appState = resetAppStateToDemo();
-        appState.currentUser = { email, name: email.split('@')[0] };
-      }
+      // Keep existing reports if any, otherwise empty
       showToast("Signed in successfully.");
     }
     

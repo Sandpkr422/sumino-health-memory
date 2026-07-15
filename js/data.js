@@ -37,6 +37,13 @@ const DEMO_REPORTS = [
 
 const INITIAL_STATE = {
   version: 2, // Version marker for migrations
+  currentUser: null,
+  reports: [],
+  chatHistory: []
+};
+
+const DEMO_STATE = {
+  version: 2,
   currentUser: { email: "demo@sumino.ai", name: "Jane Doe" },
   reports: DEMO_REPORTS,
   chatHistory: [
@@ -71,8 +78,8 @@ export function saveAppState(state) {
 }
 
 export function resetAppStateToDemo() {
-  localStorage.setItem("sumino_app_state", JSON.stringify(INITIAL_STATE));
-  return JSON.parse(JSON.stringify(INITIAL_STATE));
+  localStorage.setItem("sumino_app_state", JSON.stringify(DEMO_STATE));
+  return JSON.parse(JSON.stringify(DEMO_STATE));
 }
 
 export function clearUserSession() {
