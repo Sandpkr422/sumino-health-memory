@@ -1,8 +1,12 @@
 // SUMINO - Supabase Client Config & Initialization
-// Automatically detects environment variables loaded by Vite
+// Automatically detects env variables or falls back to client-side LocalStorage credentials
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Check local storage for runtime configuration first (bypasses build-time inlining issues)
+const runtimeUrl = localStorage.getItem("sumino_supabase_url");
+const runtimeKey = localStorage.getItem("sumino_supabase_anon_key");
+
+const supabaseUrl = runtimeUrl || import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = runtimeKey || import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export const isSupabaseConfigured = !!(
   supabaseUrl && 

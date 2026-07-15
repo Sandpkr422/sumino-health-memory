@@ -301,6 +301,20 @@
         <div id="diagnostics-results-list" style="display:flex; flex-direction:column; gap:12px;">
           <!-- Populated by JS -->
         </div>
+
+        <!-- Manual Config Form Fallback -->
+        <div id="manual-config-form-container" style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border-color);">
+          <h4 style="margin: 0 0 8px; font-family: var(--font-heading); font-size: 0.95rem; color: var(--text-main);">Connect Database Manually (Client-Side)</h4>
+          <p style="font-size: 0.8rem; color: var(--text-light); margin-bottom: 12px; line-height: 1.4;">If Vercel build variables are not loading, enter your keys here. They will be saved securely in your browser's LocalStorage and used at runtime.</p>
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <input type="text" id="diag-input-url" class="form-control" style="font-size:0.8rem; padding:8px;" placeholder="https://your-project-id.supabase.co">
+            <input type="text" id="diag-input-key" class="form-control" style="font-size:0.8rem; padding:8px;" placeholder="your-publishable-anon-key">
+            <div style="display:flex; gap:10px; margin-top:5px;">
+              <button class="btn btn-primary" id="diag-save-config-btn" style="font-size:0.8rem; padding:8px 16px;">Save & Connect</button>
+              <button class="btn btn-secondary" id="diag-clear-config-btn" style="font-size:0.8rem; padding:8px 16px; background-color: var(--danger-bg); color: var(--danger); border-color: var(--danger-border);">Clear Credentials</button>
+            </div>
+          </div>
+        </div>
       </div>
       <a id="trigger-diagnostics-btn" style="color:var(--text-light); font-size:0.75rem; text-decoration:underline; cursor:pointer; display:block; text-align:center; margin-top:24px; margin-bottom:24px;">Run System Connection Diagnostics</a>
     </section>

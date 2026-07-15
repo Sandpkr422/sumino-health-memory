@@ -227,6 +227,48 @@ function initRouting() {
       });
     });
   }
+
+  // Client-side manual credentials save/clear buttons
+  const saveConfigBtn = document.getElementById("diag-save-config-btn");
+  const clearConfigBtn = document.getElementById("diag-clear-config-btn");
+
+  if (saveConfigBtn) {
+    // Prefill form
+    const inputUrl = document.getElementById("diag-input-url");
+    const inputKey = document.getElementById("diag-input-key");
+    if (inputUrl && inputKey) {
+      inputUrl.value = localStorage.getItem("sumino_supabase_url") || "";
+      inputKey.value = localStorage.getItem("sumino_supabase_anon_key") || "";
+    }
+
+    saveConfigBtn.addEventListener("click", () => {
+      const url = document.getElementById("diag-input-url").value.trim();
+      const key = document.getElementById("diag-input-key").value.trim();
+      
+      if (!url || !key) {
+        showToast("Please fill in both the URL and the Anon Key.");
+        return;
+      }
+      
+      localStorage.setItem("sumino_supabase_url", url);
+      localStorage.setItem("sumino_supabase_anon_key", key);
+      showToast("Credentials saved successfully! Reconnecting...");
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    });
+  }
+
+  if (clearConfigBtn) {
+    clearConfigBtn.addEventListener("click", () => {
+      localStorage.removeItem("sumino_supabase_url");
+      localStorage.removeItem("sumino_supabase_anon_key");
+      showToast("Credentials cleared. Reconnecting to build defaults...");
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    });
+  }
 }
 
 // Update header visibility of navigation tabs
