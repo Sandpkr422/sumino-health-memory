@@ -349,27 +349,37 @@ function initAuth() {
     }
 
     if (isSupabaseConfigured && supabase) {
-      showToast("Sending magic authentication link...");
-      const { error } = await supabase.auth.signInWithOtp({
-        email: email,
-        options: {
-          shouldCreateUser: isSignUpMode,
-          data: {
-            full_name: name
-          },
-          emailRedirectTo: window.location.origin
-        }
-      });
+      if (isSignUpMode) {
+        showToast("Creating cloud account...");
+        const { data, error } = await supabase.auth.signUp({
+          email: email,
+          password: password,
+          options: {
+            data: {
+              full_name: name
+            }
+          }
+        });
 
-      if (error) {
-        showToast("OTP Link request failed: " + error.message);
+        if (error) {
+          showToast("Registration failed: " + error.message);
+        } else {
+          showToast("Registration successful! Logging in...");
+          // Try to log in immediately
+          const { error: loginErr } = await supabase.auth.signInWithPassword({ email, password });
+          if (loginErr) {
+            showToast("Confirm your email to complete registration.");
+          }
+        }
       } else {
-        showToast("Magic login link sent! Check your inbox.");
-        // Clear fields
-        document.getElementById("auth-email").value = "";
-        document.getElementById("auth-password").value = "";
-        if (document.getElementById("auth-name")) {
-          document.getElementById("auth-name").value = "";
+        showToast("Logging in...");
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: email,
+          password: password
+        });
+
+        if (error) {
+          showToast("Login failed: " + error.message);
         }
       }
     } else {
